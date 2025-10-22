@@ -22,6 +22,17 @@ export interface EpisodeMetadata {
   createdAt: number
 }
 
+export interface EpisodeDescription {
+  id: string
+  episodeId: string
+  arcId: string
+  fileName: string
+  text: string
+  source: "disk" | "local"
+  lastModified: number
+  lastUpdated: number
+}
+
 export interface PlaybackProgress {
   id: string
   episodeId: string
@@ -72,6 +83,11 @@ interface OnePieceDB extends DBSchema {
     key: string
     value: { episodeId: string; blob: Blob }
   }
+  descriptions: {
+    key: string
+    value: EpisodeDescription
+    indexes: { "by-episode": string; "by-arc": string }
+  }
 }
 
 let db: IDBPDatabase<OnePieceDB> | null = null
@@ -79,7 +95,7 @@ let db: IDBPDatabase<OnePieceDB> | null = null
 export async function initDB() {
   if (db) return db
 
-  db = await openDB<OnePieceDB>("one-piece-viewer", 2, {
+  db = await openDB<OnePieceDB>("one-piece-viewer", 3, {
     upgrade(db, oldVersion) {
       // Arcs store
       if (!db.objectStoreNames.contains("arcs")) {
@@ -112,6 +128,12 @@ export async function initDB() {
       // Thumbnails store
       if (!db.objectStoreNames.contains("thumbnails")) {
         db.createObjectStore("thumbnails", { keyPath: "episodeId" })
+      }
+
+      if (!db.objectStoreNames.contains("descriptions")) {
+        const descStore = db.createObjectStore("descriptions", { keyPath: "id" })
+        descStore.createIndex("by-episode", "episodeId")
+        descStore.createIndex("by-arc", "arcId")
       }
     },
   })
@@ -228,6 +250,23 @@ export async function saveThumbnail(episodeId: string, blob: Blob) {
 export async function getThumbnail(episodeId: string) {
   const database = await getDB()
   return database.get("thumbnails", episodeId)
+}
+
+// Description operations
+export async function saveDescription(description: EpisodeDescription) {
+  const database = await getDB()
+  await database.put("descriptions", description)
+}
+
+export async function getDescription(episodeId: string) {
+  const database = await getDB()
+  const allDescs = await database.getAllFromIndex("descriptions", "by-episode", episodeId)
+  return allDescs[0] || null
+}
+
+export async function deleteDescription(id: string) {
+  const database = await getDB()
+  await database.delete("descriptions", id)
 }
 
 // Export/Import

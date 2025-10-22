@@ -129,3 +129,62 @@ export async function extractVideoThumbnail(file: File, timeOffset = 1): Promise
     video.src = url
   })
 }
+
+export async function findDescriptionFile(
+  arcHandle: FileSystemDirectoryHandle,
+  videoFileName: string,
+): Promise<File | null> {
+  try {
+    const baseName = videoFileName.substring(0, videoFileName.lastIndexOf("."))
+
+    // Try exact match first
+    try {
+      const fileHandle = await arcHandle.getFileHandle(`${baseName}.txt`)
+      return await fileHandle.getFile()
+    } catch {
+      // Try case-insensitive search
+      for await (const entry of arcHandle.entries()) {
+        const [name, handle] = entry
+        if (handle.kind === "file") {
+          const entryBaseName = name.substring(0, name.lastIndexOf("."))
+          const entryExt = name.substring(name.lastIndexOf(".")).toLowerCase()
+
+          if (entryBaseName.toLowerCase() === baseName.toLowerCase() && entryExt === ".txt") {
+            return await (handle as FileSystemFileHandle).getFile()
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error finding description file:", error)
+  }
+  return null
+}
+
+export async function readDescriptionFile(file: File): Promise<string> {
+  try {
+    const text = await file.text()
+    return text
+  } catch (error) {
+    console.error("Error reading description file:", error)
+    throw new Error("Failed to read description file")
+  }
+}
+
+export async function writeDescriptionFile(
+  arcHandle: FileSystemDirectoryHandle,
+  videoFileName: string,
+  content: string,
+): Promise<boolean> {
+  try {
+    const baseName = videoFileName.substring(0, videoFileName.lastIndexOf("."))
+    const fileHandle = await arcHandle.getFileHandle(`${baseName}.txt`, { create: true })
+    const writable = await fileHandle.createWritable()
+    await writable.write(content)
+    await writable.close()
+    return true
+  } catch (error) {
+    console.error("Error writing description file:", error)
+    return false
+  }
+}

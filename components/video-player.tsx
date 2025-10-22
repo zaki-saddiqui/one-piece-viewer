@@ -27,6 +27,7 @@ export function VideoPlayer({
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const progressBarRef = useRef<HTMLInputElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [showControls, setShowControls] = useState(true)
   const [isMuted, setIsMuted] = useState(false)
@@ -35,6 +36,8 @@ export function VideoPlayer({
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [isBuffering, setIsBuffering] = useState(false)
+  const [hoverTime, setHoverTime] = useState<number | null>(null)
+  const [hoverX, setHoverX] = useState(0)
   const hideControlsTimeout = useRef<NodeJS.Timeout>()
   const timeUpdateTimeout = useRef<NodeJS.Timeout>()
   const [hasResumed, setHasResumed] = useState(false)
@@ -90,6 +93,30 @@ export function VideoPlayer({
     if (videoRef.current) {
       videoRef.current.currentTime = newTime
     }
+  }
+
+  const handleProgressHover = (e: React.MouseEvent<HTMLInputElement> | React.TouchEvent<HTMLInputElement>) => {
+    if (!progressBarRef.current || !duration) return
+
+    const rect = progressBarRef.current.getBoundingClientRect()
+    let clientX: number
+
+    if ("touches" in e) {
+      clientX = e.touches[0].clientX
+    } else {
+      clientX = e.clientX
+    }
+
+    const x = clientX - rect.left
+    const percentage = Math.max(0, Math.min(1, x / rect.width))
+    const time = percentage * duration
+
+    setHoverTime(time)
+    setHoverX(x)
+  }
+
+  const handleProgressLeave = () => {
+    setHoverTime(null)
   }
 
   const handleFullscreen = () => {
@@ -296,16 +323,41 @@ export function VideoPlayer({
             exit={{ opacity: 0, y: 20 }}
             className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 space-y-2"
           >
-            {/* Progress bar */}
-            <input
-              type="range"
-              min="0"
-              max={duration || 0}
-              value={currentTime}
-              onChange={handleProgressChange}
-              className="w-full h-1 bg-white/30 rounded cursor-pointer accent-primary hover:h-2 transition-all"
-              aria-label="Video progress"
-            />
+            {/* Progress bar with hover preview */}
+            <div className="relative group">
+              <input
+                ref={progressBarRef}
+                type="range"
+                min="0"
+                max={duration || 0}
+                value={currentTime}
+                onChange={handleProgressChange}
+                onMouseMove={handleProgressHover}
+                onTouchMove={handleProgressHover}
+                onMouseLeave={handleProgressLeave}
+                onTouchEnd={handleProgressLeave}
+                className="w-full h-1 bg-white/30 rounded cursor-pointer accent-primary hover:h-2 transition-all"
+                aria-label="Video progress"
+              />
+
+              <AnimatePresence>
+                {hoverTime !== null && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute bottom-full left-0 mb-2 pointer-events-none"
+                    style={{
+                      transform: `translateX(calc(${hoverX}px - 50%))`,
+                    }}
+                  >
+                    <div className="bg-black/90 text-white text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
+                      {formatTime(hoverTime)}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             {/* Time display and controls */}
             <div className="flex items-center justify-between gap-4">
