@@ -95,7 +95,7 @@ let db: IDBPDatabase<OnePieceDB> | null = null
 export async function initDB() {
   if (db) return db
 
-  db = await openDB<OnePieceDB>("one-piece-viewer", 3, {
+  db = await openDB<OnePieceDB>("one-piece-viewer", 4, {
     upgrade(db, oldVersion) {
       // Arcs store
       if (!db.objectStoreNames.contains("arcs")) {
@@ -112,8 +112,9 @@ export async function initDB() {
 
       // Playback progress store
       if (!db.objectStoreNames.contains("playback")) {
-        const playbackStore = db.createObjectStore("playback", { keyPath: "episodeId" })
+        const playbackStore = db.createObjectStore("playback", { keyPath: "id" })
         playbackStore.createIndex("by-arc", "arcId")
+        playbackStore.createIndex("by-episode", "episodeId")
       }
 
       // File handles store
@@ -156,7 +157,8 @@ export async function saveArc(arc: ArcMetadata) {
 
 export async function getArcs() {
   const database = await getDB()
-  return database.getAllFromIndex("arcs", "by-order")
+  const arcs = await database.getAllFromIndex("arcs", "by-order")
+  return arcs.sort((a, b) => a.order - b.order)
 }
 
 export async function getArc(id: string) {
@@ -182,7 +184,8 @@ export async function saveEpisode(episode: EpisodeMetadata) {
 
 export async function getEpisodes(arcId: string) {
   const database = await getDB()
-  return database.getAllFromIndex("episodes", "by-arc", arcId)
+  const episodes = await database.getAllFromIndex("episodes", "by-arc", arcId)
+  return episodes.sort((a, b) => a.order - b.order)
 }
 
 export async function getEpisode(id: string) {
@@ -193,12 +196,15 @@ export async function getEpisode(id: string) {
 // Playback progress operations
 export async function savePlaybackProgress(progress: PlaybackProgress) {
   const database = await getDB()
+  console.log("[v0] Saving playback progress:", progress.id, "at", progress.currentTime, "seconds")
   await database.put("playback", progress)
 }
 
 export async function getPlaybackProgress(stableId: string) {
   const database = await getDB()
-  return database.get("playback", stableId)
+  const progress = await database.get("playback", stableId)
+  console.log("[v0] Retrieved playback progress for", stableId, ":", progress?.currentTime || "none")
+  return progress
 }
 
 // File handle operations

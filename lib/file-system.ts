@@ -23,22 +23,28 @@ function parseEpisodeNumber(filename: string): number | null {
 }
 
 function naturalSort(a: string, b: string): number {
-  const aNum = parseEpisodeNumber(a)
-  const bNum = parseEpisodeNumber(b)
+  // Split filenames into parts (numbers and non-numbers)
+  const aParts = a.split(/(\d+)/).filter(Boolean)
+  const bParts = b.split(/(\d+)/).filter(Boolean)
 
-  // Both have numbers: sort by numeric value
-  if (aNum !== null && bNum !== null) {
-    return aNum - bNum
+  // Compare each part
+  for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+    const aPart = aParts[i] || ""
+    const bPart = bParts[i] || ""
+
+    // If both parts are numbers, compare numerically
+    if (/^\d+$/.test(aPart) && /^\d+$/.test(bPart)) {
+      const aNum = Number.parseInt(aPart)
+      const bNum = Number.parseInt(bPart)
+      if (aNum !== bNum) return aNum - bNum
+    } else {
+      // Otherwise, compare as strings
+      const comparison = aPart.localeCompare(bPart, undefined, { numeric: true, sensitivity: "base" })
+      if (comparison !== 0) return comparison
+    }
   }
 
-  // Only a has number: a comes first
-  if (aNum !== null) return -1
-
-  // Only b has number: b comes first
-  if (bNum !== null) return 1
-
-  // Neither has number: natural sort by filename
-  return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
+  return 0
 }
 
 export async function discoverArcs(rootHandle: FileSystemDirectoryHandle): Promise<DiscoveredArc[]> {

@@ -44,6 +44,7 @@ export default function PlayerPage() {
   const [description, setDescription] = useState<EpisodeDescription | null>(null)
   const [descriptionLoading, setDescriptionLoading] = useState(false)
   const [arcHandle, setArcHandle] = useState<FileSystemDirectoryHandle | null>(null)
+  const [handleError, setHandleError] = useState<string | null>(null)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
@@ -55,6 +56,7 @@ export default function PlayerPage() {
   async function loadPlayerData() {
     setLoading(true)
     setAutoplayBlocked(false)
+    setHandleError(null)
     try {
       const arcData = await getArc(arcSlug!)
       if (arcData) {
@@ -78,26 +80,41 @@ export default function PlayerPage() {
     try {
       if (!arcData.name) {
         console.error("[v0] Arc name is missing")
+        setHandleError("Arc information is missing. Please go back and select the directory again.")
         return
       }
 
       const rootHandle = await getFileHandle("root")
       if (!rootHandle) {
         console.error("[v0] Root handle not found")
+        setHandleError("Directory access expired. Please go back to home and select your directory again.")
         return
       }
 
+      let arcHandleObj: FileSystemDirectoryHandle
       try {
         await rootHandle.handle.queryPermission({ mode: "read" })
-      } catch (error) {
-        console.error("[v0] Root handle permission check failed:", error)
+        arcHandleObj = await rootHandle.handle.getDirectoryHandle(arcData.name)
+      } catch (error: any) {
+        console.error("[v0] File handle is stale or expired:", error.message)
         await saveHandleStatus("root", "stale")
+        setHandleError(
+          "Your directory access has expired. This can happen after a browser restart or if permissions were revoked. Please go back to home and select your directory again.",
+        )
         return
       }
 
-      const arcHandleObj = await rootHandle.handle.getDirectoryHandle(arcData.name)
       setArcHandle(arcHandleObj)
-      const fileHandle = await arcHandleObj.getFileHandle(episode.fileName)
+
+      let fileHandle: FileSystemFileHandle
+      try {
+        fileHandle = await arcHandleObj.getFileHandle(episode.fileName)
+      } catch (error: any) {
+        console.error("[v0] Episode file not found:", error.message)
+        setHandleError(`Episode file "${episode.fileName}" not found in the directory.`)
+        return
+      }
+
       const episodeFile = await getVideoFile(fileHandle)
 
       const lastModified = episodeFile.lastModified
@@ -116,11 +133,12 @@ export default function PlayerPage() {
       await saveHandleStatus(`file:${id}`, "ok")
 
       await loadDescription(episode, arcHandleObj, lastModified)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error loading episode video:", error)
       if (stableId) {
         await saveHandleStatus(`file:${stableId}`, "stale")
       }
+      setHandleError("Failed to load episode. Please try again or go back to home to re-select your directory.")
     }
   }
 
@@ -187,7 +205,6 @@ export default function PlayerPage() {
       lastUpdated: Date.now(),
     }
 
-    // Save to IndexedDB
     await saveDescription(desc)
     setDescription(desc)
 
@@ -245,10 +262,21 @@ export default function PlayerPage() {
         {/* Video Player */}
         <div className="flex-1">
           <Link href={`/arc/${arcSlug}`}>
-            <Button variant="ghost" className="mb-4 cursor-pointer">
+            <Button variant="ghost" className="mb-4">
               ← Back to Arc
             </Button>
           </Link>
+
+          {handleError && (
+            <Card className="mb-4 p-4 bg-destructive/10 border-destructive/20">
+              <p className="text-sm text-destructive">{handleError}</p>
+              <Link href="/">
+                <Button variant="outline" size="sm" className="mt-2 bg-transparent">
+                  Go to Home
+                </Button>
+              </Link>
+            </Card>
+          )}
 
           <Card className="overflow-hidden bg-black">
             {videoUrl && (
@@ -290,17 +318,13 @@ export default function PlayerPage() {
             >
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-foreground">Playlist</h2>
-                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      checked={autoPlayNext}
-                      onChange={(e) => setAutoPlayNext(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-10 h-5 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors duration-200"></div>
-                    <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-all duration-200 peer-checked:translate-x-5"></div>
-                  </div>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={autoPlayNext}
+                    onChange={(e) => setAutoPlayNext(e.target.checked)}
+                    className="rounded cursor-pointer"
+                  />
                   <span className="text-muted-foreground">Auto-play next</span>
                 </label>
               </div>
