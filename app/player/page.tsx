@@ -245,7 +245,7 @@ export default function PlayerPage() {
         {/* Video Player */}
         <div className="flex-1">
           <Link href={`/arc/${arcSlug}`}>
-            <Button variant="ghost" className="mb-4">
+            <Button variant="ghost" className="mb-4 cursor-pointer">
               ← Back to Arc
             </Button>
           </Link>
@@ -290,13 +290,17 @@ export default function PlayerPage() {
             >
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-foreground">Playlist</h2>
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={autoPlayNext}
-                    onChange={(e) => setAutoPlayNext(e.target.checked)}
-                    className="rounded cursor-pointer"
-                  />
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={autoPlayNext}
+                      onChange={(e) => setAutoPlayNext(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-5 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors duration-200"></div>
+                    <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-all duration-200 peer-checked:translate-x-5"></div>
+                  </div>
                   <span className="text-muted-foreground">Auto-play next</span>
                 </label>
               </div>
