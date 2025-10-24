@@ -14,6 +14,8 @@ interface VideoPlayerProps {
   autoPlay?: boolean
   resumeTime?: number
   onResumeClick?: () => void
+  autoPlayNext?: boolean
+  onAutoPlayNextChange?: (enabled: boolean) => void
 }
 
 export function VideoPlayer({
@@ -24,6 +26,8 @@ export function VideoPlayer({
   autoPlay = true,
   resumeTime,
   onResumeClick,
+  autoPlayNext = false,
+  onAutoPlayNextChange,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -151,7 +155,6 @@ export function VideoPlayer({
     }
 
     if (video.readyState >= 1) {
-      // Metadata already loaded
       video.currentTime = resumeTime
       setCurrentTime(resumeTime)
       setHasResumed(true)
@@ -420,14 +423,31 @@ export function VideoPlayer({
                 </div>
               </div>
 
-              {/* Fullscreen */}
-              <button
-                onClick={handleFullscreen}
-                className="p-2 hover:bg-white/20 rounded transition-colors cursor-pointer"
-                aria-label="Fullscreen"
-              >
-                <Maximize className="w-5 h-5 text-white" />
-              </button>
+              <div className="flex items-center gap-4">
+                {/* Styled Auto-play Next Toggle */}
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={autoPlayNext}
+                      onChange={(e) => onAutoPlayNextChange?.(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-5 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors duration-200"></div>
+                    <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-all duration-200 peer-checked:translate-x-5"></div>
+                  </div>
+                  <span className="text-white">Auto-play next</span>
+                </label>
+
+                {/* Fullscreen */}
+                <button
+                  onClick={handleFullscreen}
+                  className="p-2 hover:bg-white/20 rounded transition-colors cursor-pointer"
+                  aria-label="Fullscreen"
+                >
+                  <Maximize className="w-5 h-5 text-white" />
+                </button>
+              </div>
             </div>
           </motion.div>
         )}

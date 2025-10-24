@@ -2,17 +2,38 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { exportMetadata, importMetadata } from "@/lib/db"
 import { motion } from "framer-motion"
 import Link from "next/link"
+import { Moon, Sun } from "lucide-react"
 
 export default function SettingsPage() {
   const [exporting, setExporting] = useState(false)
   const [importing, setImporting] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [theme, setTheme] = useState<"light" | "dark">("light")
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    const savedTheme = (localStorage.getItem("theme") as "light" | "dark") || "light"
+    setTheme(savedTheme)
+  }, [])
+
+  const toggleTheme = () => {
+    const newTheme = theme === "light" ? "dark" : "light"
+    setTheme(newTheme)
+    const html = document.documentElement
+    if (newTheme === "dark") {
+      html.classList.add("dark")
+    } else {
+      html.classList.remove("dark")
+    }
+    localStorage.setItem("theme", newTheme)
+  }
 
   async function handleExport() {
     setExporting(true)
@@ -55,13 +76,15 @@ export default function SettingsPage() {
     }
   }
 
+  if (!mounted) return null
+
   return (
     <main className="min-h-screen bg-background">
       {/* Header */}
       <div className="bg-card border-b border-border">
         <div className="max-w-4xl mx-auto px-6 py-8">
           <Link href="/">
-            <Button variant="ghost" className="mb-4">
+            <Button variant="ghost" className="mb-4 cursor-pointer">
               ← Back
             </Button>
           </Link>
@@ -86,6 +109,35 @@ export default function SettingsPage() {
             {message.text}
           </motion.div>
         )}
+
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+          <Card className="p-6">
+            <h2 className="text-xl font-bold text-foreground mb-4">Appearance</h2>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-foreground mb-1">Theme</h3>
+                <p className="text-sm text-muted-foreground">Choose between light and dark theme</p>
+              </div>
+              <button
+                onClick={toggleTheme}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors cursor-pointer"
+                aria-label="Toggle theme"
+              >
+                {theme === "light" ? (
+                  <>
+                    <Moon className="w-5 h-5" />
+                    <span className="text-sm font-medium">Dark</span>
+                  </>
+                ) : (
+                  <>
+                    <Sun className="w-5 h-5" />
+                    <span className="text-sm font-medium">Light</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </Card>
+        </motion.div>
 
         {/* Privacy Notice */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
@@ -119,7 +171,7 @@ export default function SettingsPage() {
                 <p className="text-sm text-muted-foreground mb-3">
                   Download a backup of all your arcs, episodes, and watch progress.
                 </p>
-                <Button onClick={handleExport} disabled={exporting} className="w-full sm:w-auto">
+                <Button onClick={handleExport} disabled={exporting} className="w-full sm:w-auto cursor-pointer">
                   {exporting ? "Exporting..." : "Export Metadata"}
                 </Button>
               </div>
